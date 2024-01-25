@@ -6,6 +6,10 @@ import (
 	"libvirt.org/go/libvirt"
 )
 
+func createVM() error {
+	panic("not implemented")
+}
+
 func main() {
 	fmt.Println("Getting started...")
 
