@@ -28,6 +28,8 @@ func (vmc *VMCreator) createDomainNameAndTitleFromMedia() (name string, title st
 	name = baseName
 	title = baseTitle
 
+	pool, err := EnsureStoragePool(vmc.connection)
+
 	return
 }
 
