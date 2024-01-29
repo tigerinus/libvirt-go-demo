@@ -6,23 +6,25 @@ import (
 	"strconv"
 
 	"github.com/tigerinus/libvirt-go-demo/config"
-	"github.com/tigerinus/libvirt-go-demo/schema"
+	"libvirt.org/go/libvirtxml"
 )
 
 func GetPoolConfig() (string, error) {
 	poolPath := GetUserPkgData("images")
 
-	config := schema.StoragePool{
-		Type: schema.StoragePoolTypeDir,
+	defaultPermissions := getDefaultPermissions()
+
+	config := libvirtxml.StoragePool{
+		Type: "dir",
 		Name: config.PackageTarname,
-		Source: schema.StoragePoolSource{
-			Directory: schema.StoragePoolSourceDirectory{
+		Source: &libvirtxml.StoragePoolSource{
+			Dir: &libvirtxml.StoragePoolSourceDir{
 				Path: poolPath,
 			},
 		},
-		Target: schema.StoragePoolTarget{
+		Target: &libvirtxml.StoragePoolTarget{
 			Path:        poolPath,
-			Permissions: getDefaultPermissions(),
+			Permissions: &defaultPermissions,
 		},
 	}
 
@@ -34,8 +36,8 @@ func GetPoolConfig() (string, error) {
 	return string(xmlConfig), nil
 }
 
-func getDefaultPermissions() schema.StoragePoolTargetPermissions {
-	return schema.StoragePoolTargetPermissions{
+func getDefaultPermissions() libvirtxml.StoragePoolTargetPermissions {
+	return libvirtxml.StoragePoolTargetPermissions{
 		Owner: strconv.Itoa(os.Getuid()),
 		Group: strconv.Itoa(os.Getgid()),
 		Mode:  "744",

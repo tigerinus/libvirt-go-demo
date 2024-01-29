@@ -1,6 +1,10 @@
 package main
 
-import "libvirt.org/go/libvirt"
+import (
+	"fmt"
+
+	"libvirt.org/go/libvirt"
+)
 
 type VMCreator struct {
 	InstallMedia *InstallerMedia
@@ -29,6 +33,38 @@ func (vmc *VMCreator) createDomainNameAndTitleFromMedia() (name string, title st
 	title = baseTitle
 
 	pool, err := EnsureStoragePool(vmc.connection)
+
+	for i := 2; ; i++ {
+		domain, err := vmc.connection.LookupDomainByName(name)
+		if err != nil {
+			return "", "", err
+		}
+
+		if domain == nil {
+			break
+		}
+
+		domain, err = vmc.connection.LookupDomainByName(title)
+		if err != nil {
+			return "", "", err
+		}
+
+		if domain == nil {
+			break
+		}
+
+		volume, err := pool.LookupStorageVolByName(name)
+		if err != nil {
+			return "", "", err
+		}
+
+		if volume == nil {
+			break
+		}
+
+		name = fmt.Sprintf("%s-%d", baseName, i)
+		title = fmt.Sprintf("%s-%d", baseTitle, i)
+	}
 
 	return
 }
