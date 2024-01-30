@@ -1,13 +1,14 @@
-package main
+package vmconfigurator_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tigerinus/libvirt-go-demo/vmconfigurator"
 )
 
 func TestXxx(t *testing.T) {
-	config, err := GetPoolConfig()
+	config, err := vmconfigurator.GetPoolConfig()
 
 	require.Nil(t, err)
 

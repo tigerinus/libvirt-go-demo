@@ -1,4 +1,4 @@
-package main
+package vmconfigurator
 
 import (
 	"encoding/xml"
@@ -6,11 +6,12 @@ import (
 	"strconv"
 
 	"github.com/tigerinus/libvirt-go-demo/config"
+	"github.com/tigerinus/libvirt-go-demo/util"
 	"libvirt.org/go/libvirtxml"
 )
 
 func GetPoolConfig() (string, error) {
-	poolPath := GetUserPkgData("images")
+	poolPath := util.GetUserPkgData("images")
 
 	defaultPermissions := getDefaultPermissions()
 

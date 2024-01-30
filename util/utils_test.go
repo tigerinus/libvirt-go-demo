@@ -1,6 +1,10 @@
-package main
+package util_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/tigerinus/libvirt-go-demo/util"
+)
 
 func TestReplaceRegex(t *testing.T) {
 	old := "[{|}~[\\]^':; <=>?@!\"#$%`()+/.,*&]"
@@ -32,7 +36,7 @@ func TestReplaceRegex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ReplaceRegex(tt.args.str, tt.args.old, tt.args.replacement); got != tt.want {
+			if got := util.ReplaceRegex(tt.args.str, tt.args.old, tt.args.replacement); got != tt.want {
 				t.Errorf("ReplaceRegex() = %v, want %v", got, tt.want)
 			}
 		})
