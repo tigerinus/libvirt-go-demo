@@ -1,11 +1,15 @@
 package installermedia
 
-import "path/filepath"
+import (
+	"fmt"
+	"path/filepath"
+)
 
 type InstallerMedia struct {
 	Label      string
 	DeviceFile string
 	FromImage  bool
+	SkipImport bool
 }
 
 func ForPath(path string) (*InstallerMedia, error) {
@@ -17,6 +21,11 @@ func ForPath(path string) (*InstallerMedia, error) {
 	media.labelSetup(nil)
 
 	return &media, nil
+}
+
+// dummy func for now
+func (im *InstallerMedia) PrepareForInstallation(vmName string) {
+	fmt.Printf("PrepareForInstallation(\"%s\") is not implemented for now\n", vmName)
 }
 
 func (im *InstallerMedia) labelSetup(label *string) {

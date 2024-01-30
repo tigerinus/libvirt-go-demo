@@ -28,7 +28,7 @@ func GetUserPkgCache(fileName string) string {
 
 func EnsureDirectory(dir string) {
 	if err := os.MkdirAll(dir, 0x744); err != nil {
-		fmt.Printf("warning: %s", err.Error())
+		fmt.Printf("warning: %s\n", err.Error())
 	}
 }
 

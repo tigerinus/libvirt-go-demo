@@ -13,7 +13,7 @@ import (
 func GetPoolConfig() (string, error) {
 	poolPath := util.GetUserPkgData("images")
 
-	defaultPermissions := getDefaultPermissions()
+	defaultPermissions := getDefaultPoolPermissions()
 
 	config := libvirtxml.StoragePool{
 		Type: "dir",
@@ -37,8 +37,37 @@ func GetPoolConfig() (string, error) {
 	return string(xmlConfig), nil
 }
 
-func getDefaultPermissions() libvirtxml.StoragePoolTargetPermissions {
+func CreateVolumeConfig(name string, storage uint64) (string, error) {
+	defaultPermissions := getDefaultVolumePermissions()
+
+	config := libvirtxml.StorageVolume{
+		Name:     name,
+		Capacity: &libvirtxml.StorageVolumeSize{Value: storage},
+		Target: &libvirtxml.StorageVolumeTarget{
+			Format:      &libvirtxml.StorageVolumeTargetFormat{Type: "qcow2"},
+			Compat:      "1.1",
+			Permissions: &defaultPermissions,
+		},
+	}
+
+	xmlConfig, err := xml.Marshal(config)
+	if err != nil {
+		return "", err
+	}
+
+	return string(xmlConfig), nil
+}
+
+func getDefaultPoolPermissions() libvirtxml.StoragePoolTargetPermissions {
 	return libvirtxml.StoragePoolTargetPermissions{
+		Owner: strconv.Itoa(os.Getuid()),
+		Group: strconv.Itoa(os.Getgid()),
+		Mode:  "744",
+	}
+}
+
+func getDefaultVolumePermissions() libvirtxml.StorageVolumeTargetPermissions {
+	return libvirtxml.StorageVolumeTargetPermissions{
 		Owner: strconv.Itoa(os.Getuid()),
 		Group: strconv.Itoa(os.Getgid()),
 		Mode:  "744",

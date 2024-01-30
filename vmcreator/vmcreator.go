@@ -21,10 +21,42 @@ func NewVMCreator(installMedia *installermedia.InstallerMedia) *VMCreator {
 	}
 }
 
-func (vmc *VMCreator) CreateVM() error {
+func (vmc *VMCreator) createDomainConfig(name, title, volumePath string) (string, error) {
+	caps, err := vmc.connection.GetCapabilities()
+	if err != nil {
+		return "", err
+	}
+
+	domcaps, err := vmc.connection.GetDomainCapabilities("", "", "", "", 0)
+	if err != nil {
+		return "", err
+	}
+
+	panic("not implemented")
+}
+
+func (vmc *VMCreator) CreateVM(clone bool) error {
 	name, title, err := vmc.createDomainNameAndTitleFromMedia()
 	if err != nil {
 		return err
+	}
+
+	vmc.InstallMedia.PrepareForInstallation(name)
+
+	var volumePath *string
+	if vmc.InstallMedia.SkipImport && !clone {
+		volumePath = &vmc.InstallMedia.DeviceFile
+
+		fmt.Printf("Skipping import. Using '%s' as target volume\n", *volumePath)
+	} else {
+		volume, err := vmc.createTargetVolume(name, DefaultStorage)
+		if err != nil {
+			return err
+		}
+		volumePath, err := volume.GetPath()
+		if err != nil {
+			return err
+		}
 	}
 
 	panic("not implemented" + name + title)
@@ -77,6 +109,29 @@ func (vmc *VMCreator) createDomainBaseNameAndTitle() (baseName string, baseTitle
 	baseTitle = vmc.InstallMedia.Label
 	baseName = "unknown"
 	return
+}
+
+func (vmc *VMCreator) createTargetVolume(name string, storage uint64) (*libvirt.StorageVol, error) {
+	pool, err := EnsureStoragePool(vmc.connection)
+	if err != nil {
+		return nil, err
+	}
+
+	config, err := vmconfigurator.CreateVolumeConfig(name, storage)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("Creating volume '%s' ..\n", name)
+
+	volume, err := pool.StorageVolCreateXML(config, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("Created volume '%s'.\n", name)
+
+	return volume, nil
 }
 
 func EnsureStoragePool(connection *libvirt.Connect) (*libvirt.StoragePool, error) {
