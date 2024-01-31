@@ -68,7 +68,7 @@ func (vmc *VMCreator) CreateVM(clone bool) (*libvirt.Domain, error) {
 
 		fmt.Printf("Skipping import. Using '%s' as target volume\n", *volumePath)
 	} else {
-		volume, err2 := vmc.createTargetVolume(name, DefaultStorage)
+		volume, err2 := vmc.createTargetVolume(name, config.DefaultStorage)
 		if err2 != nil {
 			return nil, err2
 		}
@@ -90,7 +90,7 @@ func (vmc *VMCreator) CreateVM(clone bool) (*libvirt.Domain, error) {
 		return nil, err
 	}
 
-	return vmc.connection.DomainCreateXML(xmlConfig, 0)
+	return vmc.connection.DomainDefineXML(xmlConfig)
 }
 
 func (vmc *VMCreator) createDomainNameAndTitleFromMedia() (name string, title string, err error) {

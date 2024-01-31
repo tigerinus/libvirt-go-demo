@@ -1,7 +1,9 @@
 package vmconfigurator
 
 import (
+	"errors"
 	"os"
+	"sort"
 	"strconv"
 
 	"github.com/tigerinus/libvirt-go-demo/config"
@@ -45,9 +47,78 @@ func CreateVolumeConfig(name string, storage uint64) *libvirtxml.StorageVolume {
 }
 
 func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string, caps libvirtxml.Caps, domainCaps libvirtxml.DomainCaps) (*libvirtxml.Domain, error) {
-	config := libvirtxml.Domain{}
+	config := libvirtxml.Domain{
+		Memory: &libvirtxml.DomainMemory{},
+		Metadata: &libvirtxml.DomainMetadata{
+			XML: "<x-casaos>TODO</x-casaos>",
+		},
+	}
+
+	bestCaps, err := GetBestGuestCaps(caps)
+	if err != nil {
+		return nil, err
+	}
 
 	return &config, nil
+}
+
+func GetBestGuestCaps(caps libvirtxml.Caps) (*libvirtxml.CapsGuest, error) {
+	guestsCaps := caps.Guests
+
+	// Ensure we have the best caps on the top
+	sort.Slice(guestsCaps, func(a, b int) bool {
+		capsA := guestsCaps[a]
+		capsB := guestsCaps[b]
+
+		archA := capsA.Arch.Name
+		archB := capsB.Arch.Name
+
+		if archA == "i686" {
+			return archB == "x86_64"
+		} else if archA == "x86_64" {
+			return false
+		} else if archB == "x86_64" || archB == "i686" {
+			return true
+		}
+
+		return false
+	})
+
+	for _, guestCaps := range guestsCaps {
+		if guestKVMEnabled(guestCaps) {
+			return &guestCaps, nil
+		}
+	}
+
+	for _, guestCaps := range guestsCaps {
+		if guestIsQEMU(guestCaps) {
+			return &guestCaps, nil
+		}
+	}
+
+	return nil, errors.New("incapable host system")
+}
+
+func guestKVMEnabled(guestCaps libvirtxml.CapsGuest) bool {
+	arch := guestCaps.Arch
+	for _, domain := range arch.Domains {
+		if domain.Type == "kvm" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func guestIsQEMU(guestCaps libvirtxml.CapsGuest) bool {
+	arch := guestCaps.Arch
+	for _, domain := range arch.Domains {
+		if domain.Type == "qemu" {
+			return true
+		}
+	}
+
+	return false
 }
 
 func getDefaultPoolPermissions() libvirtxml.StoragePoolTargetPermissions {

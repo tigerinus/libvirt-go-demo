@@ -5,6 +5,10 @@ import (
 	"path/filepath"
 )
 
+type Resources struct {
+	RAM uint64
+}
+
 type InstallerMedia struct {
 	Label      string
 	DeviceFile string
