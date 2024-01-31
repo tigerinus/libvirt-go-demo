@@ -1,21 +1,21 @@
 package vmconfigurator
 
 import (
-	"encoding/xml"
 	"os"
 	"strconv"
 
 	"github.com/tigerinus/libvirt-go-demo/config"
+	"github.com/tigerinus/libvirt-go-demo/installermedia"
 	"github.com/tigerinus/libvirt-go-demo/util"
 	"libvirt.org/go/libvirtxml"
 )
 
-func GetPoolConfig() (string, error) {
+func GetPoolConfig() *libvirtxml.StoragePool {
 	poolPath := util.GetUserPkgData("images")
 
 	defaultPermissions := getDefaultPoolPermissions()
 
-	config := libvirtxml.StoragePool{
+	return &libvirtxml.StoragePool{
 		Type: "dir",
 		Name: config.PackageTarname,
 		Source: &libvirtxml.StoragePoolSource{
@@ -28,19 +28,12 @@ func GetPoolConfig() (string, error) {
 			Permissions: &defaultPermissions,
 		},
 	}
-
-	xmlConfig, err := xml.Marshal(config)
-	if err != nil {
-		return "", err
-	}
-
-	return string(xmlConfig), nil
 }
 
-func CreateVolumeConfig(name string, storage uint64) (string, error) {
+func CreateVolumeConfig(name string, storage uint64) *libvirtxml.StorageVolume {
 	defaultPermissions := getDefaultVolumePermissions()
 
-	config := libvirtxml.StorageVolume{
+	return &libvirtxml.StorageVolume{
 		Name:     name,
 		Capacity: &libvirtxml.StorageVolumeSize{Value: storage},
 		Target: &libvirtxml.StorageVolumeTarget{
@@ -49,13 +42,12 @@ func CreateVolumeConfig(name string, storage uint64) (string, error) {
 			Permissions: &defaultPermissions,
 		},
 	}
+}
 
-	xmlConfig, err := xml.Marshal(config)
-	if err != nil {
-		return "", err
-	}
+func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string, caps libvirtxml.Caps, domainCaps libvirtxml.DomainCaps) (*libvirtxml.Domain, error) {
+	config := libvirtxml.Domain{}
 
-	return string(xmlConfig), nil
+	return &config, nil
 }
 
 func getDefaultPoolPermissions() libvirtxml.StoragePoolTargetPermissions {

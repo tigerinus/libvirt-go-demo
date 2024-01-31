@@ -8,6 +8,7 @@ import (
 	"github.com/tigerinus/libvirt-go-demo/util"
 	"github.com/tigerinus/libvirt-go-demo/vmconfigurator"
 	"libvirt.org/go/libvirt"
+	"libvirt.org/go/libvirtxml"
 )
 
 type VMCreator struct {
@@ -21,24 +22,42 @@ func NewVMCreator(installMedia *installermedia.InstallerMedia) *VMCreator {
 	}
 }
 
-func (vmc *VMCreator) createDomainConfig(name, title, volumePath string) (string, error) {
-	caps, err := vmc.connection.GetCapabilities()
+func (vmc *VMCreator) createDomainConfig(name, title, volumePath string) (*libvirtxml.Domain, error) {
+	capsXML, err := vmc.connection.GetCapabilities()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	domcaps, err := vmc.connection.GetDomainCapabilities("", "", "", "", 0)
-	if err != nil {
-		return "", err
+	var caps libvirtxml.Caps
+	if err2 := caps.Unmarshal(capsXML); err2 != nil {
+		return nil, err2
 	}
 
-	panic("not implemented")
+	domcapsXML, err := vmc.connection.GetDomainCapabilities("", "", "", "", 0)
+	if err != nil {
+		return nil, err
+	}
+
+	var domcaps libvirtxml.DomainCaps
+	if err3 := domcaps.Unmarshal(domcapsXML); err3 != nil {
+		return nil, err3
+	}
+
+	config, err := vmconfigurator.CreateDomainConfig(vmc.InstallMedia, volumePath, caps, domcaps)
+	if err != nil {
+		return nil, err
+	}
+
+	config.Name = name
+	config.Title = title
+
+	return config, nil
 }
 
-func (vmc *VMCreator) CreateVM(clone bool) error {
+func (vmc *VMCreator) CreateVM(clone bool) (*libvirt.Domain, error) {
 	name, title, err := vmc.createDomainNameAndTitleFromMedia()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	vmc.InstallMedia.PrepareForInstallation(name)
@@ -49,17 +68,29 @@ func (vmc *VMCreator) CreateVM(clone bool) error {
 
 		fmt.Printf("Skipping import. Using '%s' as target volume\n", *volumePath)
 	} else {
-		volume, err := vmc.createTargetVolume(name, DefaultStorage)
-		if err != nil {
-			return err
+		volume, err2 := vmc.createTargetVolume(name, DefaultStorage)
+		if err2 != nil {
+			return nil, err2
 		}
-		volumePath, err := volume.GetPath()
-		if err != nil {
-			return err
+		_volumePath, err2 := volume.GetPath()
+		if err2 != nil {
+			return nil, err2
 		}
+
+		volumePath = &_volumePath
 	}
 
-	panic("not implemented" + name + title)
+	config, err := vmc.createDomainConfig(name, title, *volumePath)
+	if err != nil {
+		return nil, err
+	}
+
+	xmlConfig, err := config.Marshal()
+	if err != nil {
+		return nil, err
+	}
+
+	return vmc.connection.DomainCreateXML(xmlConfig, 0)
 }
 
 func (vmc *VMCreator) createDomainNameAndTitleFromMedia() (name string, title string, err error) {
@@ -117,14 +148,15 @@ func (vmc *VMCreator) createTargetVolume(name string, storage uint64) (*libvirt.
 		return nil, err
 	}
 
-	config, err := vmconfigurator.CreateVolumeConfig(name, storage)
+	config := vmconfigurator.CreateVolumeConfig(name, storage)
+	xmlConfig, err := config.Marshal()
 	if err != nil {
 		return nil, err
 	}
 
 	fmt.Printf("Creating volume '%s' ..\n", name)
 
-	volume, err := pool.StorageVolCreateXML(config, 0)
+	volume, err := pool.StorageVolCreateXML(xmlConfig, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -142,14 +174,15 @@ func EnsureStoragePool(connection *libvirt.Connect) (*libvirt.StoragePool, error
 
 	if pool == nil {
 		fmt.Println("Creating storage pool..")
-		poolConfig, err2 := vmconfigurator.GetPoolConfig()
-		if err2 != nil {
-			return nil, err2
+		poolConfig := vmconfigurator.GetPoolConfig()
+		xmlConfig, err3 := poolConfig.Marshal()
+		if err3 != nil {
+			return nil, err3
 		}
 
-		pool, err2 = connection.StoragePoolCreateXML(poolConfig, libvirt.STORAGE_POOL_CREATE_NORMAL)
-		if err2 != nil {
-			return nil, err2
+		pool, err = connection.StoragePoolCreateXML(xmlConfig, libvirt.STORAGE_POOL_CREATE_NORMAL)
+		if err != nil {
+			return nil, err
 		}
 
 		if err2 := pool.Build(libvirt.STORAGE_POOL_BUILD_NEW); err2 != nil {
