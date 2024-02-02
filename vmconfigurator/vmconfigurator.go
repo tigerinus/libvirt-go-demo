@@ -47,8 +47,10 @@ func CreateVolumeConfig(name string, storage uint64) *libvirtxml.StorageVolume {
 }
 
 func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string, caps libvirtxml.Caps, domainCaps libvirtxml.DomainCaps) (*libvirtxml.Domain, error) {
-	config := libvirtxml.Domain{
-		Memory: &libvirtxml.DomainMemory{},
+	domain := libvirtxml.Domain{
+		Memory: &libvirtxml.DomainMemory{
+			Value: media.Resources.RAM,
+		},
 		Metadata: &libvirtxml.DomainMetadata{
 			XML: "<x-casaos>TODO</x-casaos>",
 		},
@@ -59,7 +61,17 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 		return nil, err
 	}
 
-	return &config, nil
+	virtType := "qemu"
+
+	if guestKVMEnabled(*bestCaps) {
+		virtType = "kvm"
+	}
+
+	setCPUConfig(&domain, caps, &virtType)
+
+	domain.Type = virtType
+
+	return &domain, nil
 }
 
 func GetBestGuestCaps(caps libvirtxml.Caps) (*libvirtxml.CapsGuest, error) {
@@ -97,6 +109,40 @@ func GetBestGuestCaps(caps libvirtxml.Caps) (*libvirtxml.CapsGuest, error) {
 	}
 
 	return nil, errors.New("incapable host system")
+}
+
+func setCPUConfig(domain *libvirtxml.Domain, caps libvirtxml.Caps, virtType *string) {
+	virtTypeKVM := "kvm"
+	if virtType != nil {
+		virtType = &virtTypeKVM
+	}
+
+	cpuCaps := caps.Host.CPU
+
+	if cpuCaps.Topology == nil {
+		return
+	}
+
+	topology := &libvirtxml.DomainCPUTopology{
+		Sockets: cpuCaps.Topology.Sockets,
+		Dies:    cpuCaps.Topology.Dies,
+		Cores:   cpuCaps.Topology.Cores,
+		Threads: cpuCaps.Topology.Threads,
+	}
+
+	domain.VCPU = &libvirtxml.DomainVCPU{
+		Value: uint(topology.Sockets * topology.Cores * topology.Threads),
+	}
+
+	mode := "host-passthrough"
+	if *virtType == "qemu" {
+		mode = "host-model"
+	}
+
+	domain.CPU = &libvirtxml.DomainCPU{
+		Mode:     mode,
+		Topology: topology,
+	}
 }
 
 func guestKVMEnabled(guestCaps libvirtxml.CapsGuest) bool {

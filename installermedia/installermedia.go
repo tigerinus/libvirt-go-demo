@@ -6,7 +6,7 @@ import (
 )
 
 type Resources struct {
-	RAM uint64
+	RAM uint
 }
 
 type InstallerMedia struct {
@@ -14,6 +14,7 @@ type InstallerMedia struct {
 	DeviceFile string
 	FromImage  bool
 	SkipImport bool
+	Resources  Resources
 }
 
 func ForPath(path string) (*InstallerMedia, error) {
