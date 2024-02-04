@@ -71,6 +71,42 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 
 	domain.Type = virtType
 
+	setOSConfig(&domain, *bestCaps)
+
+	features := libvirtxml.DomainFeatureList{}
+
+	if guestSupportsFeature(*bestCaps, "acpi") {
+		features.ACPI = &libvirtxml.DomainFeature{}
+	}
+
+	if guestSupportsFeature(*bestCaps, "apic") {
+		features.APIC = &libvirtxml.DomainFeatureAPIC{}
+	}
+
+	if guestSupportsFeature(*bestCaps, "pae") {
+		features.PAE = &libvirtxml.DomainFeature{}
+	}
+
+	domain.Features = &features
+
+	domain.Clock = &libvirtxml.DomainClock{
+		Offset: "localtime",
+		Timer: []libvirtxml.DomainTimer{
+			{
+				Name:       "rtc",
+				TickPolicy: "catchup",
+			},
+			{
+				Name:       "pit",
+				TickPolicy: "delay",
+			},
+			{
+				Name:    "hpet",
+				Present: "false",
+			},
+		},
+	}
+
 	return &domain, nil
 }
 
@@ -145,6 +181,23 @@ func setCPUConfig(domain *libvirtxml.Domain, caps libvirtxml.Caps, virtType *str
 	}
 }
 
+func setOSConfig(domain *libvirtxml.Domain, guestCaps libvirtxml.CapsGuest) {
+	domain.OS = &libvirtxml.DomainOS{
+		Type: &libvirtxml.DomainOSType{
+			Type: "hvm",
+			Arch: guestCaps.Arch.Name,
+		},
+		// Firmware: "efi",
+		BootDevices: []libvirtxml.DomainBootDevice{
+			{Dev: "cdrom"},
+			{Dev: "hd"},
+		},
+		BootMenu: &libvirtxml.DomainBootMenu{
+			Enable: "true",
+		},
+	}
+}
+
 func guestKVMEnabled(guestCaps libvirtxml.CapsGuest) bool {
 	arch := guestCaps.Arch
 	for _, domain := range arch.Domains {
@@ -181,4 +234,29 @@ func getDefaultVolumePermissions() libvirtxml.StorageVolumeTargetPermissions {
 		Group: strconv.Itoa(os.Getgid()),
 		Mode:  "744",
 	}
+}
+
+func guestSupportsFeature(guestCaps libvirtxml.CapsGuest, featureName string) bool {
+	if guestCaps.Features == nil {
+		return false
+	}
+
+	switch featureName {
+	case "cpuselection":
+		return guestCaps.Features.CPUSelection != nil
+	case "deviceboot":
+		return guestCaps.Features.DeviceBoot != nil
+	case "disksnapshot":
+		return guestCaps.Features.DiskSnapshot != nil
+	case "pae":
+		return guestCaps.Features.PAE != nil
+	case "apic":
+		return guestCaps.Features.APIC != nil
+	case "acpi":
+		return guestCaps.Features.ACPI != nil
+	case "ia64_be":
+		return guestCaps.Features.IA64BE != nil
+	}
+
+	return false
 }
