@@ -13,6 +13,11 @@ import (
 	"libvirt.org/go/libvirtxml"
 )
 
+const (
+	SpiceAgentChannel = "com.redhat.spice.0"
+	WebDAVChannelURI  = "org.spice-space.webdav.0"
+)
+
 func GetPoolConfig() *libvirtxml.StoragePool {
 	poolPath := util.GetUserPkgData("images")
 
@@ -115,9 +120,10 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 		Spice: CreateGraphicDevice(nil),
 	})
 
-	// domain.add_device (create_spice_agent_channel ());
-	// domain.add_device (create_spice_webdav_channel ());
-	// add_usb_support (domain, install_media);
+	domain.Devices.Channels = append(domain.Devices.Channels, *CreateSpiceAgentChannel())
+	domain.Devices.Channels = append(domain.Devices.Channels, *CreateSpiceWebDAVChannel())
+
+	AddUSBSupport(&domain)
 
 	// if (!App.is_running_in_flatpak ())
 	// 	add_smartcard_support (domain);
@@ -148,6 +154,96 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 	// domain.add_device (iface);
 
 	return &domain, nil
+}
+
+func AddUSBSupport(domain *libvirtxml.Domain) {
+	for i := 0; i < 4; i++ {
+		domain.Devices.RedirDevs = append(domain.Devices.RedirDevs, libvirtxml.DomainRedirDev{
+			Bus: "usb",
+			Source: &libvirtxml.DomainChardevSource{
+				SpiceVMC: &libvirtxml.DomainChardevSourceSpiceVMC{},
+			},
+		})
+	}
+
+	controller := createUSBController("qemu-xhci", nil, nil, nil)
+
+	port := uint(15)
+	controller.USB.Port = &port
+	domain.Devices.Controllers = append(domain.Devices.Controllers, *controller)
+}
+
+func CreateSpiceAgentChannel() *libvirtxml.DomainChannel {
+	return &libvirtxml.DomainChannel{
+		Target: &libvirtxml.DomainChannelTarget{
+			VirtIO: &libvirtxml.DomainChannelTargetVirtIO{
+				Name: SpiceAgentChannel,
+			},
+		},
+		Source: &libvirtxml.DomainChardevSource{
+			SpiceVMC: &libvirtxml.DomainChardevSourceSpiceVMC{},
+		},
+	}
+}
+
+func CreateGraphicDevice(accel3d *bool) *libvirtxml.DomainGraphicSpice {
+	gl := "false"
+	if accel3d != nil && *accel3d {
+		gl = "true"
+	}
+
+	return &libvirtxml.DomainGraphicSpice{
+		AutoPort: "false",
+		GL: &libvirtxml.DomainGraphicSpiceGL{
+			Enable: gl,
+		},
+		Image: &libvirtxml.DomainGraphicSpiceImage{
+			Compression: "off",
+		},
+	}
+}
+
+func CreateSpiceWebDAVChannel() *libvirtxml.DomainChannel {
+	return &libvirtxml.DomainChannel{
+		Target: &libvirtxml.DomainChannelTarget{
+			VirtIO: &libvirtxml.DomainChannelTargetVirtIO{
+				Name: WebDAVChannelURI,
+			},
+		},
+		Source: &libvirtxml.DomainChardevSource{
+			SpicePort: &libvirtxml.DomainChardevSourceSpicePort{
+				Channel: WebDAVChannelURI,
+			},
+		},
+	}
+}
+
+func createUSBController(model string, master *libvirtxml.DomainController, index, startPort *uint) *libvirtxml.DomainController {
+	if index == nil {
+		index = new(uint)
+		*index = 0
+	}
+
+	if startPort == nil {
+		startPort = new(uint)
+		*startPort = 0
+	}
+
+	controller := libvirtxml.DomainController{
+		Model: model,
+		Index: index,
+	}
+
+	if master != nil {
+		controller.Index = master.Index
+		controller.USB = &libvirtxml.DomainControllerUSB{
+			Master: &libvirtxml.DomainControllerUSBMaster{
+				StartPort: *startPort,
+			},
+		}
+	}
+
+	return &controller
 }
 
 func GetBestGuestCaps(caps libvirtxml.Caps) (*libvirtxml.CapsGuest, error) {
@@ -185,23 +281,6 @@ func GetBestGuestCaps(caps libvirtxml.Caps) (*libvirtxml.CapsGuest, error) {
 	}
 
 	return nil, errors.New("incapable host system")
-}
-
-func CreateGraphicDevice(accel3d *bool) *libvirtxml.DomainGraphicSpice {
-	gl := "false"
-	if accel3d != nil && *accel3d {
-		gl = "true"
-	}
-
-	return &libvirtxml.DomainGraphicSpice{
-		AutoPort: "false",
-		GL: &libvirtxml.DomainGraphicSpiceGL{
-			Enable: gl,
-		},
-		Image: &libvirtxml.DomainGraphicSpiceImage{
-			Compression: "off",
-		},
-	}
 }
 
 func setCPUConfig(domain *libvirtxml.Domain, caps libvirtxml.Caps, virtType *string) {
