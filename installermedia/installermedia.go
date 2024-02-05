@@ -36,13 +36,59 @@ func (im *InstallerMedia) PrepareForInstallation(vmName string) {
 }
 
 func (im *InstallerMedia) SetupDomainConfig(domain *libvirtxml.Domain) {
+	diskType := "block"
+	if im.FromImage {
+		diskType = "file"
+	}
+
+	mandatory := true
+
+	im.addCDConfig(domain, diskType, &im.DeviceFile, "hdc", &mandatory)
 }
 
 func (im *InstallerMedia) addCDConfig(
 	domain *libvirtxml.Domain,
-	diskType libvirtxml.DomainDisk,
+	diskType string,
+	isoPath *string,
+	deviceName string,
+	mandatory *bool,
 ) {
-	disk := libvirtxml.DomainDisk{}
+	disk := libvirtxml.DomainDisk{
+		// Type: diskType,
+		Device: "cdrom",
+		Driver: &libvirtxml.DomainDiskDriver{
+			Name: "qemu",
+			Type: "raw",
+		},
+		Target: &libvirtxml.DomainDiskTarget{
+			Dev: deviceName,
+		},
+	}
+
+	if isoPath != nil {
+		disk.Source = &libvirtxml.DomainDiskSource{
+			File: &libvirtxml.DomainDiskSourceFile{
+				File: *isoPath,
+			},
+		}
+	}
+
+	if im.PrefersQ35() {
+		disk.Target.Bus = "sata"
+	} else {
+		disk.Target.Bus = "ide"
+	}
+
+	if mandatory == nil {
+		mandatory = new(bool)
+		*mandatory = false
+	}
+
+	if diskType == "file" && *mandatory {
+		disk.Source.StartupPolicy = "mandatory"
+	}
+
+	domain.Devices.Disks = append(domain.Devices.Disks, disk)
 }
 
 func (im *InstallerMedia) labelSetup(label *string) {

@@ -109,6 +109,43 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 	}
 
 	setTargetMediaConfig(&domain, targetPath, media, nil)
+	media.SetupDomainConfig(&domain)
+
+	domain.Devices.Graphics = append(domain.Devices.Graphics, libvirtxml.DomainGraphic{
+		Spice: CreateGraphicDevice(nil),
+	})
+
+	// domain.add_device (create_spice_agent_channel ());
+	// domain.add_device (create_spice_webdav_channel ());
+	// add_usb_support (domain, install_media);
+
+	// if (!App.is_running_in_flatpak ())
+	// 	add_smartcard_support (domain);
+
+	// set_video_config (domain, install_media);
+	// set_sound_config (domain, install_media);
+	// set_tablet_config (domain, install_media);
+	// set_mouse_config (domain, install_media);
+	// set_keyboard_config (domain, install_media);
+
+	// domain.set_lifecycle (DomainLifecycleEvent.ON_POWEROFF, DomainLifecycleAction.DESTROY);
+	// domain.set_lifecycle (DomainLifecycleEvent.ON_REBOOT, DomainLifecycleAction.DESTROY);
+	// domain.set_lifecycle (DomainLifecycleEvent.ON_CRASH, DomainLifecycleAction.DESTROY);
+
+	// var pm = new DomainPowerManagement ();
+	// // Disable S3 and S4 states for now due to many issues with it currently in qemu/libvirt
+	// pm.set_mem_suspend_enabled (false);
+	// pm.set_disk_suspend_enabled (false);
+	// domain.set_power_management (pm);
+	// var console = new DomainConsole ();
+	// console.set_source (new DomainChardevSourcePty ());
+	// domain.add_device (console);
+
+	// var supports_virtio_net = install_media.supports_virtio_net || install_media.supports_virtio1_net;
+	// var iface = create_network_interface (domain,
+	// 									  is_libvirt_bridge_net_available (),
+	// 									  supports_virtio_net);
+	// domain.add_device (iface);
 
 	return &domain, nil
 }
@@ -148,6 +185,23 @@ func GetBestGuestCaps(caps libvirtxml.Caps) (*libvirtxml.CapsGuest, error) {
 	}
 
 	return nil, errors.New("incapable host system")
+}
+
+func CreateGraphicDevice(accel3d *bool) *libvirtxml.DomainGraphicSpice {
+	gl := "false"
+	if accel3d != nil && *accel3d {
+		gl = "true"
+	}
+
+	return &libvirtxml.DomainGraphicSpice{
+		AutoPort: "false",
+		GL: &libvirtxml.DomainGraphicSpiceGL{
+			Enable: gl,
+		},
+		Image: &libvirtxml.DomainGraphicSpiceImage{
+			Compression: "off",
+		},
+	}
 }
 
 func setCPUConfig(domain *libvirtxml.Domain, caps libvirtxml.Caps, virtType *string) {
