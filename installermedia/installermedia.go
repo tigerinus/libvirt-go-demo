@@ -101,12 +101,18 @@ func (im *InstallerMedia) labelSetup(label *string) {
 }
 
 // getters
+
+func (im *InstallerMedia) SupportsVirtIO1Disk() bool {
+	// TEMP: for now, we'll just return false
+	return false
+}
+
 func (im *InstallerMedia) SupportsVirtIODisk() bool {
 	// TEMP: for now, we'll just return false
 	return false
 }
 
-func (im *InstallerMedia) SupportsVirtIO1Disk() bool {
+func (im *InstallerMedia) SupportsVirtIO1Net() bool {
 	// TEMP: for now, we'll just return false
 	return false
 }
@@ -116,7 +122,7 @@ func (im *InstallerMedia) SupportsVirtIONet() bool {
 	return false
 }
 
-func (im *InstallerMedia) SupportsVirtIO1Net() bool {
+func (im *InstallerMedia) SupportsVirtIOGPU() bool {
 	// TEMP: for now, we'll just return false
 	return false
 }
@@ -128,6 +134,11 @@ func (im *InstallerMedia) PrefersQ35() bool {
 
 	// TEMP: for now, we'll just return true
 	return true
+}
+
+func (im *InstallerMedia) PrefersICH9() bool {
+	// TEMP: for now, we'll just return the same value as PrefersQ35()
+	return im.PrefersQ35()
 }
 
 func (im *InstallerMedia) RequiresEFI() bool {

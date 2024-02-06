@@ -124,15 +124,13 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 	domain.Devices.Channels = append(domain.Devices.Channels, *CreateSpiceWebDAVChannel())
 
 	AddUSBSupport(&domain)
+	AddSmartcardSupport(&domain)
 
-	// if (!App.is_running_in_flatpak ())
-	// 	add_smartcard_support (domain);
-
-	// set_video_config (domain, install_media);
-	// set_sound_config (domain, install_media);
-	// set_tablet_config (domain, install_media);
-	// set_mouse_config (domain, install_media);
-	// set_keyboard_config (domain, install_media);
+	setVideoConfig(&domain, media)
+	setSoundConfig(&domain, media)
+	setTabletConfig(&domain)
+	setMouseConfig(&domain)
+	setKeyboardConfig(&domain)
 
 	// domain.set_lifecycle (DomainLifecycleEvent.ON_POWEROFF, DomainLifecycleAction.DESTROY);
 	// domain.set_lifecycle (DomainLifecycleEvent.ON_REBOOT, DomainLifecycleAction.DESTROY);
@@ -154,6 +152,14 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 	// domain.add_device (iface);
 
 	return &domain, nil
+}
+
+func AddSmartcardSupport(domain *libvirtxml.Domain) {
+	domain.Devices.Smartcards = append(domain.Devices.Smartcards, libvirtxml.DomainSmartcard{
+		Passthrough: &libvirtxml.DomainChardevSource{
+			SpiceVMC: &libvirtxml.DomainChardevSourceSpiceVMC{},
+		},
+	})
 }
 
 func AddUSBSupport(domain *libvirtxml.Domain) {
@@ -344,6 +350,56 @@ func setOSConfig(domain *libvirtxml.Domain, installMedia *installermedia.Install
 	}
 
 	domain.OS = &os
+}
+
+func setVideoConfig(domain *libvirtxml.Domain, installMedia *installermedia.InstallerMedia) {
+	video := libvirtxml.DomainVideo{
+		Model: libvirtxml.DomainVideoModel{
+			Type: "qxl",
+		},
+	}
+
+	if installMedia.SupportsVirtIOGPU() {
+		video.Model.Type = "virtio"
+	}
+
+	domain.Devices.Videos = append(domain.Devices.Videos, video)
+}
+
+func getSoundModel(installMedia *installermedia.InstallerMedia) string {
+	if installMedia.PrefersICH9() {
+		return "ich9"
+	}
+
+	return "ich6"
+}
+
+func setSoundConfig(domain *libvirtxml.Domain, installMedia *installermedia.InstallerMedia) {
+	domain.Devices.Sounds = append(domain.Devices.Sounds, libvirtxml.DomainSound{
+		Model: getSoundModel(installMedia),
+	})
+}
+
+func setTabletConfig(domain *libvirtxml.Domain) {
+	domain.Devices.Inputs = append(domain.Devices.Inputs, libvirtxml.DomainInput{
+		Type: "tablet",
+		Bus:  "usb",
+	})
+}
+
+func setMouseConfig(domain *libvirtxml.Domain) {
+	setInputConfig(domain, "mouse")
+}
+
+func setKeyboardConfig(domain *libvirtxml.Domain) {
+	setInputConfig(domain, "keyboard")
+}
+
+func setInputConfig(domain *libvirtxml.Domain, deviceType string) {
+	domain.Devices.Inputs = append(domain.Devices.Inputs, libvirtxml.DomainInput{
+		Type: deviceType,
+		Bus:  "ps2",
+	})
 }
 
 func setTargetMediaConfig(domain *libvirtxml.Domain, targetPath string, installMedia *installermedia.InstallerMedia, devIndex *uint8) {
