@@ -1,6 +1,7 @@
 package vmconfigurator_test
 
 import (
+	"encoding/xml"
 	"testing"
 
 	"github.com/samber/lo"
@@ -168,4 +169,59 @@ func TestAddSmartcardSupport(t *testing.T) {
 	require.Nil(t, err)
 
 	require.Equal(t, expected.Passthrough, actual.Passthrough)
+}
+
+func TestAddUSBSupport(t *testing.T) {
+	domain := libvirtxml.Domain{}
+
+	vmconfigurator.AddUSBSupport(&domain)
+
+	require.NotNil(t, domain.Devices)
+	require.NotNil(t, domain.Devices.RedirDevs)
+	require.Len(t, domain.Devices.RedirDevs, 4)
+	require.NotNil(t, domain.Devices.Controllers)
+	require.Len(t, domain.Devices.Controllers, 1)
+
+	actual := domain.Devices
+	require.NotNil(t, actual)
+
+	actualXML, err := xml.Marshal(domain.Devices)
+	require.Nil(t, err)
+
+	t.Logf("\n%s", actualXML)
+
+	// from real XML
+	expectedXML := `
+		<devices>
+			<redirdev bus="usb" type="spicevmc">
+				<address type="usb" bus="0" port="3"/>
+			</redirdev>
+			<redirdev bus="usb" type="spicevmc">
+				<address type="usb" bus="0" port="4"/>
+			</redirdev>
+			<redirdev bus="usb" type="spicevmc">
+				<address type="usb" bus="0" port="5"/>
+			</redirdev>
+			<redirdev bus="usb" type="spicevmc">
+				<address type="usb" bus="0" port="6"/>
+			</redirdev>
+			<controller type="usb" index="0" model="qemu-xhci" ports="15">
+				<address type="pci" domain="0x0000" bus="0x03" slot="0x00" function="0x0"/>
+			</controller>
+		</devices>
+	`
+
+	var expected libvirtxml.DomainDeviceList
+	err = xml.Unmarshal([]byte(expectedXML), &expected)
+	require.Nil(t, err)
+
+	for i, actualRedirDev := range actual.RedirDevs {
+		require.Equal(t, expected.RedirDevs[i].Bus, actualRedirDev.Bus)
+		require.Equal(t, expected.RedirDevs[i].Source, actualRedirDev.Source)
+	}
+
+	require.Equal(t, expected.Controllers[0].Type, actual.Controllers[0].Type)
+	require.Equal(t, expected.Controllers[0].Index, actual.Controllers[0].Index)
+	require.Equal(t, expected.Controllers[0].Model, actual.Controllers[0].Model)
+	require.Equal(t, expected.Controllers[0].USB.Port, actual.Controllers[0].USB.Port)
 }

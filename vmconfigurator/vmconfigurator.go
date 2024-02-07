@@ -229,6 +229,10 @@ func AddSmartcardSupport(domain *libvirtxml.Domain) {
 }
 
 func AddUSBSupport(domain *libvirtxml.Domain) {
+	if domain.Devices == nil {
+		domain.Devices = &libvirtxml.DomainDeviceList{}
+	}
+
 	for i := 0; i < 4; i++ {
 		domain.Devices.RedirDevs = append(domain.Devices.RedirDevs, libvirtxml.DomainRedirDev{
 			Bus: "usb",
@@ -239,6 +243,10 @@ func AddUSBSupport(domain *libvirtxml.Domain) {
 	}
 
 	controller := createUSBController("qemu-xhci", nil, nil, nil)
+
+	if controller.USB == nil {
+		controller.USB = &libvirtxml.DomainControllerUSB{}
+	}
 
 	port := uint(15)
 	controller.USB.Port = &port
@@ -329,6 +337,7 @@ func createUSBController(model string, master *libvirtxml.DomainController, inde
 	controller := libvirtxml.DomainController{
 		Model: model,
 		Index: index,
+		Type:  "usb", // not in GNOME Box
 	}
 
 	if master != nil {
