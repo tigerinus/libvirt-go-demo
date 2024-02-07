@@ -19,6 +19,20 @@ const (
 	WebDAVChannelURI  = "org.spice-space.webdav.0"
 )
 
+func CreateVolumeConfig(name string, storage uint64) *libvirtxml.StorageVolume {
+	defaultPermissions := getDefaultVolumePermissions()
+
+	return &libvirtxml.StorageVolume{
+		Name:     name,
+		Capacity: &libvirtxml.StorageVolumeSize{Value: storage},
+		Target: &libvirtxml.StorageVolumeTarget{
+			Format:      &libvirtxml.StorageVolumeTargetFormat{Type: "qcow2"},
+			Compat:      "1.1",
+			Permissions: &defaultPermissions,
+		},
+	}
+}
+
 func GetPoolConfig() *libvirtxml.StoragePool {
 	poolPath := util.GetUserPkgData("images")
 
@@ -34,20 +48,6 @@ func GetPoolConfig() *libvirtxml.StoragePool {
 		},
 		Target: &libvirtxml.StoragePoolTarget{
 			Path:        poolPath,
-			Permissions: &defaultPermissions,
-		},
-	}
-}
-
-func CreateVolumeConfig(name string, storage uint64) *libvirtxml.StorageVolume {
-	defaultPermissions := getDefaultVolumePermissions()
-
-	return &libvirtxml.StorageVolume{
-		Name:     name,
-		Capacity: &libvirtxml.StorageVolumeSize{Value: storage},
-		Target: &libvirtxml.StorageVolumeTarget{
-			Format:      &libvirtxml.StorageVolumeTargetFormat{Type: "qcow2"},
-			Compat:      "1.1",
 			Permissions: &defaultPermissions,
 		},
 	}
