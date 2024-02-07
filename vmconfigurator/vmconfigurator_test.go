@@ -3,10 +3,16 @@ package vmconfigurator_test
 import (
 	"testing"
 
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
+	"github.com/tigerinus/libvirt-go-demo/installermedia"
 	"github.com/tigerinus/libvirt-go-demo/vmconfigurator"
 	"libvirt.org/go/libvirtxml"
 )
+
+func TestCreateDomainConfig(t *testing.T) {
+	t.Fail()
+}
 
 func TestCreateVolumeConfig(t *testing.T) {
 	actual := vmconfigurator.CreateVolumeConfig("win11", 137438953472)
@@ -91,4 +97,44 @@ func TestGetPoolConfig(t *testing.T) {
 
 	require.Equal(t, expected.Name, actual.Name)
 	require.Equal(t, expected.Target.Permissions, actual.Target.Permissions)
+}
+
+func TestSetTargetMediaConfig(t *testing.T) {
+	domain := libvirtxml.Domain{}
+
+	media, err := installermedia.ForPath("dummy.iso")
+	require.Nil(t, err)
+
+	vmconfigurator.SetTargetMediaConfig(&domain, "whatever", media, lo.ToPtr(uint8(0)))
+
+	require.NotNil(t, domain.Devices)
+	require.NotNil(t, domain.Devices.Disks)
+	require.Len(t, domain.Devices.Disks, 1)
+
+	actual := domain.Devices.Disks[0]
+	require.NotNil(t, actual.Target)
+
+	actualXML, err := actual.Marshal()
+	require.Nil(t, err)
+
+	t.Logf("\n%s", actualXML)
+
+	// from real XML
+	expectedXML := `
+		<disk type="file" device="disk">
+			<driver name="qemu" type="qcow2" cache="writeback"/>
+			<source file="whatever"/>
+			<target dev="sda" bus="sata"/>
+			<address type="drive" controller="0" bus="0" target="0" unit="0"/>
+		</disk>
+	`
+
+	var expected libvirtxml.DomainDisk
+	err = expected.Unmarshal(expectedXML)
+	require.Nil(t, err)
+
+	require.Equal(t, expected.Device, actual.Device)
+	require.Equal(t, expected.Driver, actual.Driver)
+	require.Equal(t, expected.Source, actual.Source)
+	require.Equal(t, expected.Target, actual.Target)
 }

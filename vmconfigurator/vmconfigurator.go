@@ -19,40 +19,6 @@ const (
 	WebDAVChannelURI  = "org.spice-space.webdav.0"
 )
 
-func CreateVolumeConfig(name string, storage uint64) *libvirtxml.StorageVolume {
-	defaultPermissions := getDefaultVolumePermissions()
-
-	return &libvirtxml.StorageVolume{
-		Name:     name,
-		Capacity: &libvirtxml.StorageVolumeSize{Value: storage},
-		Target: &libvirtxml.StorageVolumeTarget{
-			Format:      &libvirtxml.StorageVolumeTargetFormat{Type: "qcow2"},
-			Compat:      "1.1",
-			Permissions: &defaultPermissions,
-		},
-	}
-}
-
-func GetPoolConfig() *libvirtxml.StoragePool {
-	poolPath := util.GetUserPkgData("images")
-
-	defaultPermissions := getDefaultPoolPermissions()
-
-	return &libvirtxml.StoragePool{
-		Type:   "dir",
-		Name:   config.PackageTarname,
-		Source: &libvirtxml.StoragePoolSource{
-			// Dir: &libvirtxml.StoragePoolSourceDir{
-			// 	Path: poolPath,
-			// },
-		},
-		Target: &libvirtxml.StoragePoolTarget{
-			Path:        poolPath,
-			Permissions: &defaultPermissions,
-		},
-	}
-}
-
 func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string, caps libvirtxml.Caps) (*libvirtxml.Domain, error) {
 	domain := libvirtxml.Domain{
 		Memory: &libvirtxml.DomainMemory{
@@ -114,7 +80,7 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 		},
 	}
 
-	setTargetMediaConfig(&domain, targetPath, media, nil)
+	SetTargetMediaConfig(&domain, targetPath, media, nil)
 	media.SetupDomainConfig(&domain)
 
 	domain.Devices.Graphics = append(domain.Devices.Graphics, libvirtxml.DomainGraphic{
@@ -162,6 +128,92 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 	domain.Devices.Interfaces = append(domain.Devices.Interfaces, iface)
 
 	return &domain, nil
+}
+
+func CreateVolumeConfig(name string, storage uint64) *libvirtxml.StorageVolume {
+	defaultPermissions := getDefaultVolumePermissions()
+
+	return &libvirtxml.StorageVolume{
+		Name:     name,
+		Capacity: &libvirtxml.StorageVolumeSize{Value: storage},
+		Target: &libvirtxml.StorageVolumeTarget{
+			Format:      &libvirtxml.StorageVolumeTargetFormat{Type: "qcow2"},
+			Compat:      "1.1",
+			Permissions: &defaultPermissions,
+		},
+	}
+}
+
+func GetPoolConfig() *libvirtxml.StoragePool {
+	poolPath := util.GetUserPkgData("images")
+
+	defaultPermissions := getDefaultPoolPermissions()
+
+	return &libvirtxml.StoragePool{
+		Type:   "dir",
+		Name:   config.PackageTarname,
+		Source: &libvirtxml.StoragePoolSource{
+			// Dir: &libvirtxml.StoragePoolSourceDir{
+			// 	Path: poolPath,
+			// },
+		},
+		Target: &libvirtxml.StoragePoolTarget{
+			Path:        poolPath,
+			Permissions: &defaultPermissions,
+		},
+	}
+}
+
+func SetTargetMediaConfig(domain *libvirtxml.Domain, targetPath string, installMedia *installermedia.InstallerMedia, devIndex *uint8) {
+	disk := libvirtxml.DomainDisk{
+		// Type: "file",
+		Device: "disk",
+		Source: &libvirtxml.DomainDiskSource{
+			File: &libvirtxml.DomainDiskSourceFile{
+				File: targetPath,
+			},
+		},
+	}
+
+	if devIndex == nil {
+		devIndex = new(uint8)
+		*devIndex = 0
+	}
+
+	target := libvirtxml.DomainDiskTarget{}
+
+	driver := libvirtxml.DomainDiskDriver{
+		Name:  "qemu",
+		Type:  "qcow2",
+		Cache: "writeback",
+	}
+
+	devLetterStr := string(*devIndex + 97)
+	if installMedia.SupportsVirtIODisk() || installMedia.SupportsVirtIO1Disk() {
+		fmt.Println("Using virtio controller for the main disk")
+		target.Bus = "virtio"
+		target.Dev = "vd" + devLetterStr
+		driver.Discard = "unmap"
+	} else {
+		if installMedia.PrefersQ35() {
+			fmt.Println("Using SATA controller for the main disk")
+			target.Bus = "sata"
+			target.Dev = "sd" + devLetterStr
+		} else {
+			fmt.Println("Using IDE controller for the main disk")
+			target.Bus = "ide"
+			target.Dev = "hd" + string(97+*devIndex)
+		}
+	}
+
+	disk.Driver = &driver
+	disk.Target = &target
+
+	if domain.Devices == nil {
+		domain.Devices = &libvirtxml.DomainDeviceList{}
+	}
+
+	domain.Devices.Disks = append(domain.Devices.Disks, disk)
 }
 
 func AddSmartcardSupport(domain *libvirtxml.Domain) {
@@ -435,54 +487,6 @@ func setInputConfig(domain *libvirtxml.Domain, deviceType string) {
 		Type: deviceType,
 		Bus:  "ps2",
 	})
-}
-
-func setTargetMediaConfig(domain *libvirtxml.Domain, targetPath string, installMedia *installermedia.InstallerMedia, devIndex *uint8) {
-	disk := libvirtxml.DomainDisk{
-		// Type: "file",
-		Device: "disk",
-		Source: &libvirtxml.DomainDiskSource{
-			File: &libvirtxml.DomainDiskSourceFile{
-				File: targetPath,
-			},
-		},
-	}
-
-	if devIndex == nil {
-		devIndex = new(uint8)
-		*devIndex = 0
-	}
-
-	target := libvirtxml.DomainDiskTarget{}
-
-	driver := libvirtxml.DomainDiskDriver{
-		Name:  "qemu",
-		Type:  "qcow2",
-		Cache: "writeback",
-	}
-
-	devLetterStr := string(*devIndex + 97)
-	if installMedia.SupportsVirtIODisk() || installMedia.SupportsVirtIO1Disk() {
-		fmt.Println("Using virtio controller for the main disk")
-		target.Bus = "virtio"
-		target.Dev = "vd" + devLetterStr
-		driver.Discard = "unmap"
-	} else {
-		if installMedia.PrefersQ35() {
-			fmt.Println("Using SATA controller for the main disk")
-			target.Bus = "sata"
-			target.Dev = "sd" + devLetterStr
-		} else {
-			fmt.Println("Using IDE controller for the main disk")
-			target.Bus = "ide"
-			target.Dev = "hd" + string(97+*devIndex)
-		}
-	}
-
-	disk.Driver = &driver
-	disk.Target = &target
-
-	domain.Devices.Disks = append(domain.Devices.Disks, disk)
 }
 
 func guestKVMEnabled(guestCaps libvirtxml.CapsGuest) bool {

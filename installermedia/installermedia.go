@@ -88,7 +88,9 @@ func (im *InstallerMedia) addCDConfig(
 		disk.Source.StartupPolicy = "mandatory"
 	}
 
-	domain.Devices = &libvirtxml.DomainDeviceList{}
+	if domain.Devices == nil {
+		domain.Devices = &libvirtxml.DomainDeviceList{}
+	}
 
 	domain.Devices.Disks = append(domain.Devices.Disks, disk)
 }
