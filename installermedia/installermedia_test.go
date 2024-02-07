@@ -1,7 +1,6 @@
 package installermedia_test
 
 import (
-	"encoding/xml"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -31,18 +30,19 @@ func TestSetupDomainConfig(t *testing.T) {
 
 	t.Logf("\n%s", actualXML)
 
+	// from real XML
 	expectedXML := `
-	<disk type="file" device="cdrom">
-		<driver name="qemu" type="raw"/>
-		<source file="dummy.iso" startupPolicy="mandatory"/>
-		<target dev="hdc" bus="sata"/>
-		<readonly/>
-		<address type="drive" controller="0" bus="0" target="0" unit="2"/>
-	</disk>  
+		<disk type="file" device="cdrom">
+			<driver name="qemu" type="raw"/>
+			<source file="dummy.iso" startupPolicy="mandatory"/>
+			<target dev="hdc" bus="sata"/>
+			<readonly/>
+			<address type="drive" controller="0" bus="0" target="0" unit="2"/>
+		</disk>  
 	`
 
 	var expected libvirtxml.DomainDisk
-	err = xml.Unmarshal([]byte(expectedXML), &expected)
+	err = expected.Unmarshal(expectedXML)
 	require.Nil(t, err)
 
 	require.Equal(t, expected.Device, actual.Device)

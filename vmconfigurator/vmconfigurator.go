@@ -25,12 +25,12 @@ func GetPoolConfig() *libvirtxml.StoragePool {
 	defaultPermissions := getDefaultPoolPermissions()
 
 	return &libvirtxml.StoragePool{
-		Type: "dir",
-		Name: config.PackageTarname,
+		Type:   "dir",
+		Name:   config.PackageTarname,
 		Source: &libvirtxml.StoragePoolSource{
-			Dir: &libvirtxml.StoragePoolSourceDir{
-				Path: poolPath,
-			},
+			// Dir: &libvirtxml.StoragePoolSourceDir{
+			// 	Path: poolPath,
+			// },
 		},
 		Target: &libvirtxml.StoragePoolTarget{
 			Path:        poolPath,
@@ -511,7 +511,7 @@ func getDefaultPoolPermissions() libvirtxml.StoragePoolTargetPermissions {
 	return libvirtxml.StoragePoolTargetPermissions{
 		Owner: strconv.Itoa(os.Getuid()),
 		Group: strconv.Itoa(os.Getgid()),
-		Mode:  "744",
+		Mode:  "0744",
 	}
 }
 
@@ -519,7 +519,7 @@ func getDefaultVolumePermissions() libvirtxml.StorageVolumeTargetPermissions {
 	return libvirtxml.StorageVolumeTargetPermissions{
 		Owner: strconv.Itoa(os.Getuid()),
 		Group: strconv.Itoa(os.Getgid()),
-		Mode:  "744",
+		Mode:  "0744",
 	}
 }
 
