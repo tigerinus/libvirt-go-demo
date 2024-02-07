@@ -33,17 +33,7 @@ func (vmc *VMCreator) createDomainConfig(name, title, volumePath string) (*libvi
 		return nil, err2
 	}
 
-	domcapsXML, err := vmc.connection.GetDomainCapabilities("", "", "", "", 0)
-	if err != nil {
-		return nil, err
-	}
-
-	var domcaps libvirtxml.DomainCaps
-	if err3 := domcaps.Unmarshal(domcapsXML); err3 != nil {
-		return nil, err3
-	}
-
-	config, err := vmconfigurator.CreateDomainConfig(vmc.InstallMedia, volumePath, caps, domcaps)
+	config, err := vmconfigurator.CreateDomainConfig(vmc.InstallMedia, volumePath, caps)
 	if err != nil {
 		return nil, err
 	}

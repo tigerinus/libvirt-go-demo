@@ -3,6 +3,7 @@ package vmconfigurator
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"sort"
 	"strconv"
@@ -52,7 +53,7 @@ func CreateVolumeConfig(name string, storage uint64) *libvirtxml.StorageVolume {
 	}
 }
 
-func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string, caps libvirtxml.Caps, domainCaps libvirtxml.DomainCaps) (*libvirtxml.Domain, error) {
+func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string, caps libvirtxml.Caps) (*libvirtxml.Domain, error) {
 	domain := libvirtxml.Domain{
 		Memory: &libvirtxml.DomainMemory{
 			Value: media.Resources.RAM,
@@ -132,24 +133,33 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 	setMouseConfig(&domain)
 	setKeyboardConfig(&domain)
 
-	// domain.set_lifecycle (DomainLifecycleEvent.ON_POWEROFF, DomainLifecycleAction.DESTROY);
-	// domain.set_lifecycle (DomainLifecycleEvent.ON_REBOOT, DomainLifecycleAction.DESTROY);
-	// domain.set_lifecycle (DomainLifecycleEvent.ON_CRASH, DomainLifecycleAction.DESTROY);
+	domain.OnPoweroff = "destroy"
+	domain.OnReboot = "destroy"
+	domain.OnCrash = "destroy"
 
-	// var pm = new DomainPowerManagement ();
-	// // Disable S3 and S4 states for now due to many issues with it currently in qemu/libvirt
-	// pm.set_mem_suspend_enabled (false);
-	// pm.set_disk_suspend_enabled (false);
-	// domain.set_power_management (pm);
-	// var console = new DomainConsole ();
-	// console.set_source (new DomainChardevSourcePty ());
-	// domain.add_device (console);
+	// Disable S3 and S4 states for now due to many issues with it currently in qemu/libvirt
+	domain.PM = &libvirtxml.DomainPM{
+		SuspendToMem: &libvirtxml.DomainPMPolicy{
+			Enabled: "no",
+		},
+		SuspendToDisk: &libvirtxml.DomainPMPolicy{
+			Enabled: "no",
+		},
+	}
 
-	// var supports_virtio_net = install_media.supports_virtio_net || install_media.supports_virtio1_net;
-	// var iface = create_network_interface (domain,
-	// 									  is_libvirt_bridge_net_available (),
-	// 									  supports_virtio_net);
-	// domain.add_device (iface);
+	console := libvirtxml.DomainConsole{
+		Source: &libvirtxml.DomainChardevSource{
+			Pty: &libvirtxml.DomainChardevSourcePty{},
+		},
+	}
+
+	domain.Devices.Consoles = append(domain.Devices.Consoles, console)
+
+	supportsVirtioNet := media.SupportsVirtIONet() || media.SupportsVirtIO1Net()
+
+	iface := CreateNetworkInterface(&domain, isLibvirtBridgetNetAvailable(), supportsVirtioNet)
+
+	domain.Devices.Interfaces = append(domain.Devices.Interfaces, iface)
 
 	return &domain, nil
 }
@@ -177,6 +187,31 @@ func AddUSBSupport(domain *libvirtxml.Domain) {
 	port := uint(15)
 	controller.USB.Port = &port
 	domain.Devices.Controllers = append(domain.Devices.Controllers, *controller)
+}
+
+func CreateNetworkInterface(domain *libvirtxml.Domain, bridge, virtio bool) libvirtxml.DomainInterface {
+	iface := libvirtxml.DomainInterface{}
+
+	if bridge {
+		fmt.Printf("Creating bridge network device for %s\n", domain.Name)
+
+		iface.Source = &libvirtxml.DomainInterfaceSource{
+			Bridge: &libvirtxml.DomainInterfaceSourceBridge{
+				Bridge: "virbr0",
+			},
+		}
+	} else {
+		fmt.Printf("Creating user network device for %s\n", domain.Name)
+		iface.Source.User = &libvirtxml.DomainInterfaceSourceUser{}
+	}
+
+	if virtio {
+		iface.Model = &libvirtxml.DomainInterfaceModel{
+			Type: "virtio",
+		}
+	}
+
+	return iface
 }
 
 func CreateSpiceAgentChannel() *libvirtxml.DomainChannel {
@@ -341,7 +376,7 @@ func setOSConfig(domain *libvirtxml.Domain, installMedia *installermedia.Install
 			{Dev: "hd"},
 		},
 		BootMenu: &libvirtxml.DomainBootMenu{
-			Enable: "true",
+			Enable: "yes",
 		},
 	}
 
@@ -511,4 +546,23 @@ func guestSupportsFeature(guestCaps libvirtxml.CapsGuest, featureName string) bo
 	}
 
 	return false
+}
+
+func isLibvirtBridgetNetAvailable() bool {
+	conn, err := net.Dial("tcp", "localhost:0")
+	if err != nil {
+		fmt.Println(err.Error())
+		return false
+	}
+	defer conn.Close()
+
+	ifName := "virbr0"
+
+	iface, err := net.InterfaceByName(ifName)
+	if err != nil || iface.Flags&net.FlagUp == 0 {
+		fmt.Printf("Interface '%s' is either not available or not up.\n", ifName)
+		return false
+	}
+
+	return true
 }
