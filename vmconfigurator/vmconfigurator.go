@@ -233,6 +233,7 @@ func AddUSBSupport(domain *libvirtxml.Domain) {
 		domain.Devices = &libvirtxml.DomainDeviceList{}
 	}
 
+	// 4 USB redirection channels
 	for i := 0; i < 4; i++ {
 		domain.Devices.RedirDevs = append(domain.Devices.RedirDevs, libvirtxml.DomainRedirDev{
 			Bus: "usb",
@@ -248,7 +249,7 @@ func AddUSBSupport(domain *libvirtxml.Domain) {
 		controller.USB = &libvirtxml.DomainControllerUSB{}
 	}
 
-	port := uint(15)
+	port := uint(15) // 15 is the max amount qemu supports for a single controller
 	controller.USB.Port = &port
 	domain.Devices.Controllers = append(domain.Devices.Controllers, *controller)
 }
