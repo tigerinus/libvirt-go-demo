@@ -138,3 +138,34 @@ func TestSetTargetMediaConfig(t *testing.T) {
 	require.Equal(t, expected.Source, actual.Source)
 	require.Equal(t, expected.Target, actual.Target)
 }
+
+func TestAddSmartcardSupport(t *testing.T) {
+	domain := libvirtxml.Domain{}
+
+	vmconfigurator.AddSmartcardSupport(&domain)
+
+	require.NotNil(t, domain.Devices)
+	require.NotNil(t, domain.Devices.Smartcards)
+	require.Len(t, domain.Devices.Smartcards, 1)
+
+	actual := domain.Devices.Smartcards[0]
+	require.NotNil(t, actual)
+
+	actualXML, err := actual.Marshal()
+	require.Nil(t, err)
+
+	t.Logf("\n%s", actualXML)
+
+	// from real XML
+	expectedXML := `
+		<smartcard mode="passthrough" type="spicevmc">
+			<address type="ccid" controller="0" slot="0"/>
+		</smartcard>  
+	`
+
+	var expected libvirtxml.DomainSmartcard
+	err = expected.Unmarshal(expectedXML)
+	require.Nil(t, err)
+
+	require.Equal(t, expected.Passthrough, actual.Passthrough)
+}

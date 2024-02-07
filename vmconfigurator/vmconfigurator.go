@@ -217,6 +217,10 @@ func SetTargetMediaConfig(domain *libvirtxml.Domain, targetPath string, installM
 }
 
 func AddSmartcardSupport(domain *libvirtxml.Domain) {
+	if domain.Devices == nil {
+		domain.Devices = &libvirtxml.DomainDeviceList{}
+	}
+
 	domain.Devices.Smartcards = append(domain.Devices.Smartcards, libvirtxml.DomainSmartcard{
 		Passthrough: &libvirtxml.DomainChardevSource{
 			SpiceVMC: &libvirtxml.DomainChardevSourceSpiceVMC{},
