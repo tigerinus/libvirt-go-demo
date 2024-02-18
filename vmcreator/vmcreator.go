@@ -45,6 +45,15 @@ func (vmc *VMCreator) createDomainConfig(name, title, volumePath string) (*libvi
 }
 
 func (vmc *VMCreator) CreateVM(clone bool) (*libvirt.Domain, error) {
+	if vmc.connection == nil {
+		conn, err := libvirt.NewConnect("qemu:///session")
+		if err != nil {
+			return nil, err
+		}
+
+		vmc.connection = conn
+	}
+
 	name, title, err := vmc.createDomainNameAndTitleFromMedia()
 	if err != nil {
 		return nil, err
@@ -58,7 +67,7 @@ func (vmc *VMCreator) CreateVM(clone bool) (*libvirt.Domain, error) {
 
 		fmt.Printf("Skipping import. Using '%s' as target volume\n", *volumePath)
 	} else {
-		volume, err2 := vmc.createTargetVolume(name, config.DefaultStorage)
+		volume, err2 := vmc.createTargetVolume(name, uint64(config.DefaultStorage))
 		if err2 != nil {
 			return nil, err2
 		}
@@ -83,47 +92,47 @@ func (vmc *VMCreator) CreateVM(clone bool) (*libvirt.Domain, error) {
 	return vmc.connection.DomainDefineXML(xmlConfig)
 }
 
-func (vmc *VMCreator) createDomainNameAndTitleFromMedia() (name string, title string, err error) {
+func (vmc *VMCreator) createDomainNameAndTitleFromMedia() (string, string, error) {
 	baseName, baseTitle := vmc.createDomainBaseNameAndTitle()
 
-	name = baseName
-	title = baseTitle
+	name := baseName
+	title := baseTitle
 
-	pool, err := EnsureStoragePool(vmc.connection)
+	pool, err := vmc.EnsureStoragePool()
+	if err != nil {
+		return "", "", err
+	}
 
 	for i := 2; ; i++ {
-		domain, err := vmc.connection.LookupDomainByName(name)
-		if err != nil {
+		if _, err = vmc.connection.LookupDomainByName(name); err != nil {
+			if libvirtErr, ok := err.(libvirt.Error); ok && libvirtErr.Code == libvirt.ERR_NO_DOMAIN {
+				break
+			}
+
 			return "", "", err
 		}
 
-		if domain == nil {
-			break
-		}
+		if _, err = vmc.connection.LookupDomainByName(title); err != nil {
+			if libvirtErr, ok := err.(libvirt.Error); ok && libvirtErr.Code == libvirt.ERR_NO_DOMAIN {
+				break
+			}
 
-		domain, err = vmc.connection.LookupDomainByName(title)
-		if err != nil {
 			return "", "", err
 		}
 
-		if domain == nil {
-			break
-		}
+		if _, err := pool.LookupStorageVolByName(name); err != nil {
+			if libvirtErr, ok := err.(libvirt.Error); ok && libvirtErr.Code == libvirt.ERR_NO_STORAGE_VOL {
+				break
+			}
 
-		volume, err := pool.LookupStorageVolByName(name)
-		if err != nil {
 			return "", "", err
-		}
-
-		if volume == nil {
-			break
 		}
 
 		name = fmt.Sprintf("%s-%d", baseName, i)
 		title = fmt.Sprintf("%s-%d", baseTitle, i)
 	}
 
-	return
+	return name, title, nil
 }
 
 func (vmc *VMCreator) createDomainBaseNameAndTitle() (baseName string, baseTitle string) {
@@ -133,7 +142,7 @@ func (vmc *VMCreator) createDomainBaseNameAndTitle() (baseName string, baseTitle
 }
 
 func (vmc *VMCreator) createTargetVolume(name string, storage uint64) (*libvirt.StorageVol, error) {
-	pool, err := EnsureStoragePool(vmc.connection)
+	pool, err := vmc.EnsureStoragePool()
 	if err != nil {
 		return nil, err
 	}
@@ -156,21 +165,23 @@ func (vmc *VMCreator) createTargetVolume(name string, storage uint64) (*libvirt.
 	return volume, nil
 }
 
-func EnsureStoragePool(connection *libvirt.Connect) (*libvirt.StoragePool, error) {
-	pool, err := GetStoragePool(*connection)
+func (vmc *VMCreator) EnsureStoragePool() (*libvirt.StoragePool, error) {
+	pool, err := vmc.GetStoragePool()
 	if err != nil {
-		return nil, err
-	}
+		libvirtErr, ok := err.(libvirt.Error)
+		if !ok || libvirtErr.Code != libvirt.ERR_NO_STORAGE_POOL {
+			return nil, err
+		}
 
-	if pool == nil {
 		fmt.Println("Creating storage pool..")
 		poolConfig := vmconfigurator.GetPoolConfig()
+
 		xmlConfig, err3 := poolConfig.Marshal()
 		if err3 != nil {
 			return nil, err3
 		}
 
-		pool, err = connection.StoragePoolCreateXML(xmlConfig, libvirt.STORAGE_POOL_CREATE_NORMAL)
+		pool, err = vmc.connection.StoragePoolDefineXML(xmlConfig, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -182,6 +193,7 @@ func EnsureStoragePool(connection *libvirt.Connect) (*libvirt.StoragePool, error
 		fmt.Println("Created storage pool.")
 	}
 
+	// Ensure pool directory exists in case user deleted it after pool creation
 	poolPath := util.GetUserPkgData("images")
 	util.EnsureDirectory(poolPath)
 
@@ -207,6 +219,41 @@ func EnsureStoragePool(connection *libvirt.Connect) (*libvirt.StoragePool, error
 	return pool, nil
 }
 
-func GetStoragePool(connection libvirt.Connect) (*libvirt.StoragePool, error) {
-	return connection.LookupStoragePoolByName(config.PackageTarname)
+func (vmc *VMCreator) GetStoragePool() (*libvirt.StoragePool, error) {
+	return vmc.connection.LookupStoragePoolByName(config.PackageTarname)
+}
+
+func (vmc *VMCreator) RemoveStoragePool() error {
+	pool, err := vmc.GetStoragePool()
+	if err != nil {
+		libvirtErr, ok := err.(libvirt.Error)
+		if ok && libvirtErr.Code == libvirt.ERR_NO_STORAGE_POOL {
+			return nil
+		}
+
+		return err
+	}
+
+	if err = pool.Destroy(); err != nil {
+		libvirtErr, ok := err.(libvirt.Error)
+		if ok && libvirtErr.Code == libvirt.ERR_NO_STORAGE_POOL {
+			return nil
+		}
+	}
+
+	if err = pool.Delete(libvirt.STORAGE_POOL_DELETE_NORMAL); err != nil {
+		libvirtErr, ok := err.(libvirt.Error)
+		if ok && libvirtErr.Code == libvirt.ERR_NO_STORAGE_POOL {
+			return nil
+		}
+	}
+
+	if err = pool.Undefine(); err != nil {
+		libvirtErr, ok := err.(libvirt.Error)
+		if ok && libvirtErr.Code == libvirt.ERR_NO_STORAGE_POOL {
+			return nil
+		}
+	}
+
+	return pool.Free()
 }

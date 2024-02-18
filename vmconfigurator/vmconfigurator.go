@@ -19,11 +19,8 @@ const (
 	WebDAVChannelURI  = "org.spice-space.webdav.0"
 )
 
-func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string, caps libvirtxml.Caps) (*libvirtxml.Domain, error) {
+func CreateDomainConfig(installMedia *installermedia.InstallerMedia, targetPath string, caps libvirtxml.Caps) (*libvirtxml.Domain, error) {
 	domain := libvirtxml.Domain{
-		Memory: &libvirtxml.DomainMemory{
-			Value: media.Resources.RAM,
-		},
 		Metadata: &libvirtxml.DomainMetadata{
 			XML: "<x-casaos>TODO</x-casaos>",
 		},
@@ -32,6 +29,10 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 	bestCaps, err := GetBestGuestCaps(caps)
 	if err != nil {
 		return nil, err
+	}
+
+	domain.Memory = &libvirtxml.DomainMemory{
+		Value: installMedia.Resources.RAM,
 	}
 
 	virtType := "qemu"
@@ -44,7 +45,7 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 
 	domain.Type = virtType
 
-	setOSConfig(&domain, media, *bestCaps)
+	setOSConfig(&domain, installMedia, *bestCaps)
 
 	features := libvirtxml.DomainFeatureList{}
 
@@ -80,8 +81,8 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 		},
 	}
 
-	SetTargetMediaConfig(&domain, targetPath, media, nil)
-	media.SetupDomainConfig(&domain)
+	SetTargetMediaConfig(&domain, targetPath, installMedia, nil)
+	installMedia.SetupDomainConfig(&domain)
 
 	domain.Devices.Graphics = append(domain.Devices.Graphics, libvirtxml.DomainGraphic{
 		Spice: CreateGraphicDevice(nil),
@@ -93,8 +94,8 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 	AddUSBSupport(&domain)
 	AddSmartcardSupport(&domain)
 
-	setVideoConfig(&domain, media)
-	setSoundConfig(&domain, media)
+	setVideoConfig(&domain, installMedia)
+	setSoundConfig(&domain, installMedia)
 	setTabletConfig(&domain)
 	setMouseConfig(&domain)
 	setKeyboardConfig(&domain)
@@ -121,7 +122,7 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 
 	domain.Devices.Consoles = append(domain.Devices.Consoles, console)
 
-	supportsVirtioNet := media.SupportsVirtIONet() || media.SupportsVirtIO1Net()
+	supportsVirtioNet := installMedia.SupportsVirtIONet() || installMedia.SupportsVirtIO1Net()
 
 	iface := CreateNetworkInterface(&domain, isLibvirtBridgetNetAvailable(), supportsVirtioNet)
 
