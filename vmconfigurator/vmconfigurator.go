@@ -255,15 +255,14 @@ func AddUSBSupport(domain *libvirtxml.Domain) {
 }
 
 func CreateNetworkInterface(domain *libvirtxml.Domain, bridge, virtio bool) libvirtxml.DomainInterface {
-	iface := libvirtxml.DomainInterface{}
+	iface := libvirtxml.DomainInterface{
+		Source: &libvirtxml.DomainInterfaceSource{},
+	}
 
 	if bridge {
 		fmt.Printf("Creating bridge network device for %s\n", domain.Name)
-
-		iface.Source = &libvirtxml.DomainInterfaceSource{
-			Bridge: &libvirtxml.DomainInterfaceSourceBridge{
-				Bridge: "virbr0",
-			},
+		iface.Source.Bridge = &libvirtxml.DomainInterfaceSourceBridge{
+			Bridge: "virbr0",
 		}
 	} else {
 		fmt.Printf("Creating user network device for %s\n", domain.Name)

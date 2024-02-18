@@ -225,3 +225,27 @@ func TestAddUSBSupport(t *testing.T) {
 	require.Equal(t, expected.Controllers[0].Model, actual.Controllers[0].Model)
 	require.Equal(t, expected.Controllers[0].USB.Port, actual.Controllers[0].USB.Port)
 }
+
+func TestCreateNetworkInterface(t *testing.T) {
+	domain := libvirtxml.Domain{}
+
+	actual := vmconfigurator.CreateNetworkInterface(&domain, false, false)
+
+	actualXML, err := actual.Marshal()
+	require.Nil(t, err)
+
+	t.Logf("\n%s", actualXML)
+
+	// from real XML
+	expectedXML := `
+		<interface type="user">
+			<mac address="52:54:00:f3:0e:57"/>
+			<model type="rtl8139"/>
+			<address type="pci" domain="0x0000" bus="0x02" slot="0x01" function="0x0"/>
+		</interface>
+	`
+
+	var expected libvirtxml.DomainInterface
+	err = expected.Unmarshal(expectedXML)
+	require.Nil(t, err)
+}
