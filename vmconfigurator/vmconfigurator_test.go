@@ -254,3 +254,55 @@ func TestCreateNetworkInterface(t *testing.T) {
 
 	require.Equal(t, expected.Source, actual.Source)
 }
+
+func TestCreateSpiceAgentChannel(t *testing.T) {
+	actual := vmconfigurator.CreateSpiceAgentChannel()
+
+	actualXML, err := actual.Marshal()
+	require.Nil(t, err)
+
+	t.Logf("\n%s", actualXML)
+
+	// from real XML
+	expectedXML := `
+		<channel type="spicevmc">
+			<target type="virtio" name="com.redhat.spice.0"/>
+			<address type="virtio-serial" controller="0" bus="0" port="1"/>
+		</channel>
+	`
+
+	var expected libvirtxml.DomainChannel
+	err = expected.Unmarshal(expectedXML)
+	require.Nil(t, err)
+
+	require.Equal(t, expected.Source, actual.Source)
+	require.Equal(t, expected.Target, actual.Target)
+}
+
+func TestCreateGraphicDevice(t *testing.T) {
+	actual := libvirtxml.DomainGraphic{
+		Spice: vmconfigurator.CreateGraphicDevice(nil),
+	}
+
+	actualXML, err := actual.Marshal()
+	require.Nil(t, err)
+
+	t.Logf("\n%s", actualXML)
+
+	// from real XML
+	expectedXML := `
+		<graphics type="spice">
+			<listen type="none"/>
+			<image compression="off"/>
+			<gl enable="no"/>
+		</graphics>
+	`
+
+	var expected libvirtxml.DomainGraphic
+	err = expected.Unmarshal(expectedXML)
+	require.Nil(t, err)
+
+	require.Equal(t, expected.Spice.AutoPort, actual.Spice.AutoPort)
+	require.Equal(t, expected.Spice.GL, actual.Spice.GL)
+	require.Equal(t, expected.Spice.Image, actual.Spice.Image)
+}

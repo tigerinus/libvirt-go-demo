@@ -292,13 +292,12 @@ func CreateSpiceAgentChannel() *libvirtxml.DomainChannel {
 }
 
 func CreateGraphicDevice(accel3d *bool) *libvirtxml.DomainGraphicSpice {
-	gl := "false"
+	gl := "no"
 	if accel3d != nil && *accel3d {
-		gl = "true"
+		gl = "yes"
 	}
 
 	return &libvirtxml.DomainGraphicSpice{
-		AutoPort: "false",
 		GL: &libvirtxml.DomainGraphicSpiceGL{
 			Enable: gl,
 		},
