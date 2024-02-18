@@ -306,3 +306,28 @@ func TestCreateGraphicDevice(t *testing.T) {
 	require.Equal(t, expected.Spice.GL, actual.Spice.GL)
 	require.Equal(t, expected.Spice.Image, actual.Spice.Image)
 }
+
+func TestCreateSpiceWebDAVChannel(t *testing.T) {
+	actual := vmconfigurator.CreateSpiceWebDAVChannel()
+
+	actualXML, err := actual.Marshal()
+	require.Nil(t, err)
+
+	t.Logf("\n%s", actualXML)
+
+	// from real XML
+	expectedXML := `
+		<channel type="spiceport">
+			<source channel="org.spice-space.webdav.0"/>
+			<target type="virtio" name="org.spice-space.webdav.0"/>
+			<address type="virtio-serial" controller="0" bus="0" port="2"/>
+		</channel>  
+	`
+
+	var expected libvirtxml.DomainChannel
+	err = expected.Unmarshal(expectedXML)
+	require.Nil(t, err)
+
+	require.Equal(t, expected.Source, actual.Source)
+	require.Equal(t, expected.Target, actual.Target)
+}
