@@ -75,7 +75,7 @@ func CreateDomainConfig(media *installermedia.InstallerMedia, targetPath string,
 			},
 			{
 				Name:    "hpet",
-				Present: "false",
+				Present: "no",
 			},
 		},
 	}
@@ -363,14 +363,14 @@ func GetBestGuestCaps(caps libvirtxml.Caps) (*libvirtxml.CapsGuest, error) {
 		archB := capsB.Arch.Name
 
 		if archA == "i686" {
-			return archB == "x86_64"
+			return archB != "x86_64"
 		} else if archA == "x86_64" {
-			return false
-		} else if archB == "x86_64" || archB == "i686" {
 			return true
+		} else if archB == "x86_64" || archB == "i686" {
+			return false
 		}
 
-		return false
+		return true
 	})
 
 	for _, guestCaps := range guestsCaps {
