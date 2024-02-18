@@ -248,4 +248,9 @@ func TestCreateNetworkInterface(t *testing.T) {
 	var expected libvirtxml.DomainInterface
 	err = expected.Unmarshal(expectedXML)
 	require.Nil(t, err)
+
+	require.NotNil(t, actual.Source)
+	require.NotNil(t, actual.Source.User)
+
+	require.Equal(t, expected.Source, actual.Source)
 }
