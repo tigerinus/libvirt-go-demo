@@ -32,6 +32,7 @@ func CreateDomainConfig(installMedia *installermedia.InstallerMedia, targetPath 
 	}
 
 	domain.Memory = &libvirtxml.DomainMemory{
+		Unit:  "b",
 		Value: installMedia.Resources.RAM,
 	}
 

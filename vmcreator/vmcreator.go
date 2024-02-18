@@ -98,13 +98,13 @@ func (vmc *VMCreator) createDomainNameAndTitleFromMedia() (string, string, error
 	name := baseName
 	title := baseTitle
 
-	pool, err := vmc.EnsureStoragePool()
-	if err != nil {
-		return "", "", err
-	}
+	// pool, err := vmc.EnsureStoragePool()
+	// if err != nil {
+	// 	return "", "", err
+	// }
 
 	for i := 2; ; i++ {
-		if _, err = vmc.connection.LookupDomainByName(name); err != nil {
+		if _, err := vmc.connection.LookupDomainByName(name); err != nil {
 			if libvirtErr, ok := err.(libvirt.Error); ok && libvirtErr.Code == libvirt.ERR_NO_DOMAIN {
 				break
 			}
@@ -112,21 +112,21 @@ func (vmc *VMCreator) createDomainNameAndTitleFromMedia() (string, string, error
 			return "", "", err
 		}
 
-		if _, err = vmc.connection.LookupDomainByName(title); err != nil {
-			if libvirtErr, ok := err.(libvirt.Error); ok && libvirtErr.Code == libvirt.ERR_NO_DOMAIN {
-				break
-			}
+		// if _, err = vmc.connection.LookupDomainByName(title); err != nil {
+		// 	if libvirtErr, ok := err.(libvirt.Error); ok && libvirtErr.Code == libvirt.ERR_NO_DOMAIN {
+		// 		break
+		// 	}
 
-			return "", "", err
-		}
+		// 	return "", "", err
+		// }
 
-		if _, err := pool.LookupStorageVolByName(name); err != nil {
-			if libvirtErr, ok := err.(libvirt.Error); ok && libvirtErr.Code == libvirt.ERR_NO_STORAGE_VOL {
-				break
-			}
+		// if _, err := pool.LookupStorageVolByName(name); err != nil {
+		// 	if libvirtErr, ok := err.(libvirt.Error); ok && libvirtErr.Code == libvirt.ERR_NO_STORAGE_VOL {
+		// 		break
+		// 	}
 
-			return "", "", err
-		}
+		// 	return "", "", err
+		// }
 
 		name = fmt.Sprintf("%s-%d", baseName, i)
 		title = fmt.Sprintf("%s-%d", baseTitle, i)

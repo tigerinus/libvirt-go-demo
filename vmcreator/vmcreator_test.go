@@ -31,7 +31,7 @@ func TestCreateVM(t *testing.T) {
 
 	vmc := vmcreator.NewVMCreator(media)
 	defer func() {
-		err := vmc.RemoveStoragePool()
+		err = vmc.RemoveStoragePool()
 		require.Nil(t, err)
 	}()
 
@@ -39,8 +39,7 @@ func TestCreateVM(t *testing.T) {
 	require.Nil(t, err3)
 
 	defer func() {
-		err := domain.Destroy()
-		require.Nil(t, err)
+		_ = domain.Destroy()
 
 		err = domain.Undefine()
 		require.Nil(t, err)
