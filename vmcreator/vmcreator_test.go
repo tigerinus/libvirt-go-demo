@@ -12,7 +12,7 @@ import (
 )
 
 func TestCreateVM(t *testing.T) {
-	isoPath := "/home/tiger/QEMU/Windows10/Windows10.iso"
+	isoPath := "/DATA/Downloads/Windows10.iso"
 	if _, err := os.Stat(isoPath); os.IsNotExist(err) {
 		t.Skipf("ISO file not found: %s", isoPath)
 	}
